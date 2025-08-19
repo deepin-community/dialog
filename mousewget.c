@@ -1,9 +1,9 @@
 /*
- *  $Id: mousewget.c,v 1.25 2019/07/25 00:06:38 tom Exp $
+ *  $Id: mousewget.c,v 1.27 2025/01/09 22:33:20 tom Exp $
  *
  *  mousewget.c -- mouse/wgetch support for dialog
  *
- *  Copyright 2000-2017,2019   Thomas E. Dickey
+ *  Copyright 2000-2022,2025	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -21,7 +21,7 @@
  *	Boston, MA 02110, USA.
  */
 
-#include <dialog.h>
+#include <dlg_internals.h>
 #include <dlg_keys.h>
 
 static int
@@ -47,9 +47,9 @@ mouse_wgetch(WINDOW *win, int *fkey, bool ignore_errs)
 			   event.y, event.x,
 			   event.y - getbegy(win),
 			   event.x - getbegx(win)));
-		if ((p = dlg_mouse_region(event.y, event.x)) != 0) {
+		if ((p = dlg_mouse_region(event.y, event.x)) != NULL) {
 		    key = DLGK_MOUSE(p->code);
-		} else if ((p = dlg_mouse_bigregion(event.y, event.x)) != 0) {
+		} else if ((p = dlg_mouse_bigregion(event.y, event.x)) != NULL) {
 		    int x = event.x - p->x;
 		    int y = event.y - p->y;
 		    int row = (p->X - p->x) / p->step_x;

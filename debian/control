@@ -2,14 +2,16 @@ Source: dialog
 Section: misc
 Priority: optional
 Maintainer: Santiago Vila <sanvila@debian.org>
-Standards-Version: 4.5.1
-Build-Depends: debhelper-compat (= 13), libncursesw5-dev (>= 5.3), gettext
+Standards-Version: 4.7.0
+Build-Depends: debhelper-compat (= 13), gettext, libncurses-dev (>= 5.3), libtool-bin
 Homepage: https://invisible-island.net/dialog/dialog.html
+Vcs-Git: https://salsa.debian.org/sanvila/dialog.git
+Vcs-Browser: https://salsa.debian.org/sanvila/dialog
+Rules-Requires-Root: no
 
 Package: dialog
 Architecture: any
-Depends: ${shlibs:Depends}, debianutils (>= 1.6)
-Provides: libdialog-dev
+Depends: debianutils (>= 1.6), ${misc:Depends}, ${shlibs:Depends}
 Multi-Arch: foreign
 Description: Displays user-friendly dialog boxes from shell scripts
  This application provides a method of displaying several different types
@@ -29,3 +31,29 @@ Description: Displays user-friendly dialog boxes from shell scripts
   tail             Allows viewing the end of files (tail) that auto updates
   background tail  Similar to tail but runs in the background.
   editbox          Allows editing an existing file
+
+Package: libdialog15
+Architecture: any
+Section: libs
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Multi-Arch: same
+Description: Displays user-friendly dialog boxes -- shared library
+ The dialog application provides a method of displaying several different
+ types of dialog boxes from shell scripts.  This allows a developer of a
+ script to interact with the user in a much friendlier manner.
+ .
+ This package contains the shared library.
+
+Package: libdialog-dev
+Architecture: any
+Section: libdevel
+Depends: ${misc:Depends}, libdialog15 (= ${binary:Version}), libncurses-dev
+Multi-Arch: same
+Replaces: dialog (<< 1.3-20240307-1~)
+Breaks: dialog (<< 1.3-20240307-1~)
+Description: Displays user-friendly dialog boxes -- development files
+ The dialog application provides a method of displaying several different
+ types of dialog boxes from shell scripts.  This allows a developer of a
+ script to interact with the user in a much friendlier manner.
+ .
+ This package contains the development files and the API documentation.

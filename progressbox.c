@@ -1,9 +1,9 @@
 /*
- *  $Id: progressbox.c,v 1.54 2020/11/22 15:48:27 tom Exp $
+ *  $Id: progressbox.c,v 1.67 2025/01/09 22:33:20 tom Exp $
  *
  *  progressbox.c -- implements the progress box
  *
- *  Copyright 2006-2019,2020	Thomas E. Dickey
+ *  Copyright 2006-2024,2025	Thomas E. Dickey
  *  Copyright 2005		Valery Reznic
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -22,12 +22,8 @@
  *	Boston, MA 02110, USA.
  */
 
-#include <dialog.h>
+#include <dlg_internals.h>
 #include <dlg_keys.h>
-
-#ifdef KEY_RESIZE
-#include <errno.h>
-#endif
 
 #define MIN_HIGH (4)
 #define MIN_WIDE (10 + 2 * (2 + MARGIN))
@@ -195,13 +191,14 @@ get_line(MY_OBJ * obj, int *restart)
     }
 
     obj->line[col] = '\0';
+    dlg_trace_msg("READ %s\n", obj->line);
 
 #ifdef KEY_RESIZE
     if (result != NULL) {
 	WINDOW *win = obj->text;
 	WROTE *wrote = dlg_calloc(WROTE, 1);
 
-	if (wrote != 0) {
+	if (wrote != NULL) {
 	    wrote->text = dlg_strclone(obj->line);
 	    wrote->link = obj->wrote;
 	    obj->wrote = wrote;
@@ -223,13 +220,47 @@ get_line(MY_OBJ * obj, int *restart)
 static void
 print_line(MY_OBJ * obj, const char *line, int row)
 {
-    int width = obj->wide - (2 * MARGIN);
-    int limit = MIN((int) strlen(line), width - 2);
+    int limit = (obj->wide - (2 * MARGIN));
 
-    (void) wmove(obj->text, row, 0);	/* move cursor to correct line */
-    wprintw(obj->text, " %.*s", limit, line);
-    while (++limit < width) {
-	waddch(obj->text, ' ');
+    int y;
+    int x;
+    int i;
+
+    if (dialog_state.color_mode & coloredContent) {
+	bool save_colors = dialog_vars.colors;
+	const int *cols = dlg_index_columns(line);
+	chtype my_attr = dialog_attr;
+	int first = 0;
+	int last = limit;
+
+	if (limit > getmaxx(obj->text))
+	    limit = getmaxx(obj->text);
+	--limit;		/* for the leading ' ' */
+
+	x = 1;
+	for (i = 0; i <= limit && cols[i]; ++i)
+	    first = i;
+
+	for (i = first; (i <= limit) && ((cols[i] - cols[first]) < limit); ++i)
+	    last = i;
+
+	dialog_vars.colors = TRUE;
+	wmove(obj->text, row, x);
+	dlg_attrset(obj->text, my_attr);
+	dlg_print_line(obj->text, &my_attr, line + first,
+		       first,
+		       last, &x);
+	dialog_vars.colors = save_colors;
+    } else {
+	(void) wmove(obj->text, row, 0);	/* move cursor to correct line */
+	dlg_print_nowrap(obj->text, line, limit);
+    }
+
+    getyx(obj->text, y, x);
+    if (y == row) {		/* Clear 'residue' of previous line */
+	for (i = 0; i <= limit - x; i++) {
+	    (void) waddch(obj->text, ' ');
+	}
     }
 }
 
@@ -443,7 +474,6 @@ dlg_progressbox(const char *title,
 	    break;
     }
 
-    dlg_trace_win(obj->obj.win);
     curs_set(1);
 
     if (pauseopt) {
@@ -483,6 +513,6 @@ dialog_progressbox(const char *title, const char *cprompt, int height, int width
 			     width,
 			     FALSE,
 			     dialog_state.pipe_input);
-    dialog_state.pipe_input = 0;
+    dialog_state.pipe_input = NULL;
     return result;
 }

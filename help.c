@@ -1,9 +1,9 @@
 /*
- *  $Id: help.c,v 1.3 2012/12/04 02:01:10 tom Exp $
+ *  $Id: help.c,v 1.5 2025/01/09 22:33:20 tom Exp $
  *
  *  help.c -- implements the help dialog
  *
- *  Copyright 2011,2012	Thomas E. Dickey
+ *  Copyright 2011-2022,2025	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -21,7 +21,7 @@
  *	Boston, MA 02110, USA.
  */
 
-#include <dialog.h>
+#include <dlg_internals.h>
 
 /*
  * Display a help-file as a textbox widget.
@@ -35,7 +35,7 @@ dialog_helpfile(const char *title,
     int result = DLG_EXIT_ERROR;
     DIALOG_VARS save;
 
-    if (!dialog_vars.in_helpfile && file != 0 && *file != '\0') {
+    if (!dialog_vars.in_helpfile && file != NULL && *file != '\0') {
 	dlg_save_vars(&save);
 
 	dialog_vars.no_label = NULL;

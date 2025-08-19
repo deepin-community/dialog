@@ -1,9 +1,9 @@
 /*
- *  $Id: tailbox.c,v 1.79 2020/11/21 21:31:49 tom Exp $
+ *  $Id: tailbox.c,v 1.89 2025/01/09 22:33:20 tom Exp $
  *
  *  tailbox.c -- implements the tail box
  *
- *  Copyright 2000-2019,2020	Thomas E. Dickey
+ *  Copyright 2000-2024,2025	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -24,9 +24,8 @@
  *	Pasquale De Marco (demarco_p@abramo.it)
  */
 
-#include <dialog.h>
+#include <dlg_internals.h>
 #include <dlg_keys.h>
-#include <sys/stat.h>
 
 typedef struct {
     DIALOG_CALLBACK obj;
@@ -81,20 +80,49 @@ get_line(MY_OBJ * obj)
  * Print a new line of text.
  */
 static void
-print_line(MY_OBJ * obj, WINDOW *win, int row, int width)
+print_line(MY_OBJ * obj, WINDOW *win, int row, int limit)
 {
-    int i, y, x;
-    char *line = get_line(obj);
+    int y;
+    int x;
+    int i;
 
-    (void) wmove(win, row, 0);	/* move cursor to correct line */
-    (void) waddch(win, ' ');
-    (void) waddnstr(win, line, MIN((int) strlen(line), width - 2));
+    if (dialog_state.color_mode & coloredContent) {
+	bool save_colors = dialog_vars.colors;
+	const char *line = get_line(obj);
+	const int *cols = dlg_index_columns(line);
+	chtype my_attr = dialog_attr;
+	int first = 0;
+	int last = limit;
 
-    getyx(win, y, x);
-    (void) y;
-    /* Clear 'residue' of previous line */
-    for (i = 0; i < width - x; i++)
-	(void) waddch(win, ' ');
+	if (limit > getmaxx(obj->text))
+	    limit = getmaxx(obj->text);
+	--limit;		/* for the leading ' ' */
+
+	x = 1;
+	for (i = 0; i <= limit && cols[i] < obj->hscroll; ++i)
+	    first = i;
+
+	for (i = first; (i <= limit) && ((cols[i] - cols[first]) < limit); ++i)
+	    last = i;
+
+	dialog_vars.colors = TRUE;
+	wmove(obj->text, row, x);
+	dlg_attrset(obj->text, my_attr);
+	dlg_print_line(obj->text, &my_attr, line + first,
+		       obj->hscroll + first,
+		       obj->hscroll + last, &x);
+	dialog_vars.colors = save_colors;
+    } else {
+	(void) wmove(win, row, 0);	/* move cursor to correct line */
+	dlg_print_nowrap(win, get_line(obj), limit);
+    }
+
+    getyx(obj->text, y, x);
+    if (y == row) {		/* Clear 'residue' of previous line */
+	for (i = 0; i <= limit - x; i++) {
+	    (void) waddch(obj->text, ' ');
+	}
+    }
 }
 
 /*
@@ -217,11 +245,11 @@ handle_input(DIALOG_CALLBACK * cb)
 }
 
 static bool
-valid_callback(DIALOG_CALLBACK * cb)
+valid_callback(const DIALOG_CALLBACK * cb)
 {
     bool valid = FALSE;
     DIALOG_CALLBACK *p;
-    for (p = dialog_state.getc_callbacks; p != 0; p = p->next) {
+    for (p = dialog_state.getc_callbacks; p != NULL; p = p->next) {
 	if (p == cb) {
 	    valid = TRUE;
 	    break;
@@ -333,7 +361,7 @@ dialog_tailbox(const char *title,
     int fkey;
     int x, y, result = DLG_EXIT_UNKNOWN, thigh;
     WINDOW *dialog, *text;
-    const char **buttons = 0;
+    const char **buttons = NULL;
     MY_OBJ *obj;
     FILE *fd;
     int min_width = 12;
@@ -392,7 +420,7 @@ dialog_tailbox(const char *title,
     obj->obj.input = fd;
     obj->obj.win = dialog;
     obj->obj.handle_getc = handle_my_getc;
-    obj->obj.handle_input = bg_task ? handle_input : 0;
+    obj->obj.handle_input = bg_task ? handle_input : NULL;
     obj->obj.keep_bg = bg_task && dialog_vars.cant_kill;
     obj->obj.bg_task = (bool) bg_task;
     obj->text = text;

@@ -1,7 +1,7 @@
-# $Id: makefile.in,v 1.101 2020/11/22 15:45:59 tom Exp $
+# $Id: makefile.in,v 1.108 2024/04/08 20:55:53 tom Exp $
 # template makefile for DIALOG
 ##############################################################################
-# Copyright (c) 1999-2018,2020 Thomas E. Dickey                              #
+# Copyright (c) 1999-2023,2024 Thomas E. Dickey                              #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -46,6 +46,7 @@ o		= .@OBJEXT@
 DESTDIR		= @DESTDIR@
 
 THIS		= dialog
+PACKAGE		= @PACKAGE@
 
 CFG_ROOTNAME	= @CFG_ROOTNAME@
 HDR_ROOTNAME	= @HDR_ROOTNAME@
@@ -71,11 +72,15 @@ libdir		= @libdir@
 mandir		= @mandir@
 manext		= 1
 libext		= 3
+docdir		= $(datarootdir)/doc/$(PACKAGE)
+pkgconfig_dir	= @PKG_CONFIG_LIBDIR@
 
 BINDIR		= $(DESTDIR)$(bindir)
 INCLUDEDIR	= $(DESTDIR)$(includedir)
 LIBDIR		= $(DESTDIR)$(libdir)
 MANDIR		= $(DESTDIR)$(mandir)
+DOCDIR		= $(DESTDIR)${docdir}
+PKGCONFIG_DIR	= $(DESTDIR)$(pkgconfig_dir)
 
 MAN1DIR		= $(MANDIR)/man1
 MAN3DIR		= $(MANDIR)/man3
@@ -91,7 +96,7 @@ CPP		= @CPP@
 AR		= @AR@
 ARFLAGS		= @ARFLAGS@
 LDFLAGS		= @EXTRA_LDFLAGS@ @LDFLAGS@
-LIBS		= @LIBS@ @INTLLIBS@
+LIBS		= @LIBS@
 RANLIB		= @LIB_PREP@
 
 RM		= rm -f
@@ -122,7 +127,6 @@ LINK		= $(LIBTOOL_LINK)
 
 # The library is always named for the package, but the program can be further
 # renamed at install time, starting with the package name.
-PACKAGE		= @PACKAGE@
 ACTUAL_PROG	= `echo $(PACKAGE) |sed @program_transform_name@`
 LIB_CONFIG	= $(CFG_ROOTNAME)-config
 
@@ -130,6 +134,7 @@ LIB_CONFIG	= $(CFG_ROOTNAME)-config
 # makefile target.  Ditto for $(PROG).
 LIB		= @LIB_TARGET@
 PROG		= @PACKAGE@$x
+PC_FILE		= @PACKAGE@.pc
 #
 # Standard .c to .o compile line.
 #
@@ -142,7 +147,7 @@ PROG		= @PACKAGE@$x
 	@ECHO_CC@$(LIBTOOL_COMPILE) $(CC) $(CFLAGS) $(EXTRA_CFLAGS) $(CPPFLAGS) -c $<
 
 @NROFF_NOTE@.1.txt :
-@NROFF_NOTE@	GROFF_NO_SGR=stupid $(SHELL) -c "tbl $< | nroff -Tascii -man | col -bx" >$@
+@NROFF_NOTE@	GROFF_NO_SGR=stupid $(SHELL) -c "tbl $< | nroff -rHY=0 -Tascii -man | col -bx" >$@
 
 @MAN2HTML_NOTE@.1.html :
 @MAN2HTML_NOTE@	./@MAN2HTML_TEMP@ $* 1 man >$@
@@ -197,14 +202,10 @@ all	:: $(ALL)
 @LIBTOOL_MAKE@install	:: install-lib
 @LIBTOOL_MAKE@uninstall	:: uninstall-lib
 
-@INTLDIR_MAKE@@INTLLIBS@ :
-@INTLDIR_MAKE@	@echo "Building GNU gettext library..."
-@INTLDIR_MAKE@	@cd intl && $(MAKE) @cf_cv_makeflags@
-
 dialog$o \
 $(OBJECTS) : $(srcdir)/dialog.h $(srcdir)/dlg_keys.h dlg_config.h VERSION
 
-$(PROG) : $(LIB) dialog$o @INTLDIR_MAKE@ @INTLLIBS@
+$(PROG) : $(LIB) dialog$o
 	$(LINK) -o $@ dialog$o -L. -l@PACKAGE@ $(CFLAGS) $(LDFLAGS) $(LIBS)
 
 clean	\
@@ -214,13 +215,13 @@ install-full \
 install-strip \
 uninstall ::
 	@echo making $@
-@INTLDIR_MAKE@	@-test -f intl/makefile && cd intl && $(MAKE) @cf_cv_makeflags@ $@
-@MSG_DIR_MAKE@	@-test -f po/makefile && cd po && $(MAKE) @cf_cv_makeflags@ $@
+@MSG_DIR_MAKE@	@-test -f po/makefile && cd po && $(MAKE) @cf_cv_makeflags@ $@ DESTDIR="$(DESTDIR)"
 
 clean	::
 	@- $(RM) -r autom4te.cache
 	- $(RM) *.*cov *.da *.bb *.bbg
 	- $(LIBTOOL_CLEAN) $(RM) *.i *$o $(ALL)
+	- $(RM) gen-pkgconfig *.pc
 	- $(RM) headers.sed
 	- $(RM) *.html *.pdf *.png *.ps *.txt dialog_lib.1
 	- $(RM) core *~ tags TAGS
@@ -245,6 +246,9 @@ install-full :: install-lib install-bin install-man
 
 install-strip :: $(PROG) $(BINDIR)
 	$(INSTALL_PROGRAM) -s $(PROG) $(BINDIR)
+
+@MAKE_PC_FILES@install-lib ::	$(PC_FILE) $(PKGCONFIG_DIR)
+@MAKE_PC_FILES@	$(INSTALL_DATA) $(PC_FILE) $(PKGCONFIG_DIR)/$(ACTUAL_PROG).pc
 
 uninstall :: uninstall-bin uninstall-man
 	@echo "made $@"
@@ -305,10 +309,66 @@ install-lib :: $(MAN3DIR)
 
 uninstall-lib ::
 	$(RM) $(MAN3DIR)/@PACKAGE@.$(libext)
+@MAKE_PC_FILES@	$(RM) $(PKGCONFIG_DIR)/$(ACTUAL_PROG).pc
+	-@echo "** uninstalled"
+
+$(PC_FILE) : gen-pkgconfig 
+	$(SHELL) gen-pkgconfig $(PC_FILE)
 
 headers.sed : headers-sh
 	$(SHELL) headers-sh $(INCLUDEDIR) $(srcdir)
 
+################################################################################
+# Examples are useful in some packages, but not actually needed for running.
+# These are not part of "install-full".
+
+EXAMPLESDIR = $(DOCDIR)/examples
+TMPDIR      = /tmp
+
+install-examples: $(EXAMPLESDIR)
+	@ echo "** installing examples in $(EXAMPLESDIR)..."
+	@ $(SHELL) -c '\
+		Q=`mktemp $(TMPDIR)/dialog.XXXXXXXX`; \
+		trap "rm -f $$Q" 0 1 2 3 15; \
+		for S in *.pl; \
+		do \
+			T=$(ACTUAL_PROG); \
+			sed -e "s%\"dialog\"%\"$$T\"%" $$S >$$Q; \
+			if test -x $$S; then \
+				$(INSTALL_SCRIPT) $$Q $(EXAMPLESDIR)/$$S; \
+			else \
+				$(INSTALL_DATA) $$Q $(EXAMPLESDIR)/$$S; \
+			fi; \
+			diff -c $$S $(EXAMPLESDIR)/$$S; \
+		done; \
+		cd $(srcdir)/samples || exit 1; \
+		for S in *;\
+		do \
+			if test -f $$S; then \
+				sed -e "/{DIALOG[=-]dialog}/s%dialog%$(ACTUAL_PROG)%" $$S >$$Q; \
+				if test -x $$S; then \
+					$(INSTALL_SCRIPT) $$Q $(EXAMPLESDIR)/$$S; \
+				else \
+					$(INSTALL_DATA) $$Q $(EXAMPLESDIR)/$$S; \
+				fi; \
+				diff -c $$S $(EXAMPLESDIR)/$$S; \
+			fi; \
+		done'
+
+uninstall-examples:
+	@ echo "** uninstalling examples from $(EXAMPLESDIR)..."
+	@ $(SHELL) -c '\
+		for S in *.pl; \
+		do \
+			$(RM) $(EXAMPLESDIR)/$$S; \
+		done; \
+		cd $(srcdir)/samples || exit 1; \
+		for S in *;\
+		do \
+			if test -f $$S; then \
+				$(RM) $(EXAMPLESDIR)/$$S; \
+			fi; \
+		done'
 ################################################################################
 TOP_DOCS = \
 @NROFF_NOTE@	dialog.txt \
@@ -347,7 +407,10 @@ $(MAN1DIR) \
 $(MAN3DIR) \
 $(BINDIR) \
 $(INCLUDEDIR) \
-$(LIBDIR) : ; mkdir -p $@
+$(LIBDIR) \
+$(PKGCONFIG_DIR) \
+$(EXAMPLESDIR) :
+	mkdir -p $@
 
 @MAKE_LOWER_TAGS@tags :
 @MAKE_LOWER_TAGS@	$(CTAGS) $(SRCS) $(HDRS)

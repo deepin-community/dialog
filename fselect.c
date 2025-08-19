@@ -1,9 +1,9 @@
 /*
- *  $Id: fselect.c,v 1.114 2020/11/23 09:03:54 tom Exp $
+ *  $Id: fselect.c,v 1.121 2025/01/09 22:33:20 tom Exp $
  *
  *  fselect.c -- implements the file-selector box
  *
- *  Copyright 2000-2019,2020	Thomas E. Dickey
+ *  Copyright 2000-2024,2025	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -23,36 +23,6 @@
 
 #include <dlg_internals.h>
 #include <dlg_keys.h>
-
-#include <sys/types.h>
-#include <sys/stat.h>
-
-#if HAVE_DIRENT_H
-# include <dirent.h>
-# define NAMLEN(dirent) strlen((dirent)->d_name)
-#else
-# define dirent direct
-# define NAMLEN(dirent) (dirent)->d_namlen
-# if HAVE_SYS_NDIR_H
-#  include <sys/ndir.h>
-# endif
-# if HAVE_SYS_DIR_H
-#  include <sys/dir.h>
-# endif
-# if HAVE_NDIR_H
-#  include <ndir.h>
-# endif
-#endif
-
-# if defined(_FILE_OFFSET_BITS) && defined(HAVE_STRUCT_DIRENT64)
-#  if !defined(_LP64) && (_FILE_OFFSET_BITS == 64)
-#   define      DIRENT  struct dirent64
-#  else
-#   define      DIRENT  struct dirent
-#  endif
-# else
-#  define       DIRENT  struct dirent
-# endif
 
 #define EXT_WIDE 1
 #define HDR_HIGH 1
@@ -96,7 +66,7 @@ init_list(LIST * list, WINDOW *par, WINDOW *win, int mousex)
     list->choice = 0;
     list->mousex = mousex;
     list->allocd = 0;
-    list->data = 0;
+    list->data = NULL;
     dlg_mouse_mkbigregion(getbegy(win), getbegx(win),
 			  getmaxy(win), getmaxx(win),
 			  mousex, 1, 1, 1 /* by lines */ );
@@ -106,7 +76,7 @@ static char *
 leaf_of(char *path)
 {
     char *leaf = strrchr(path, '/');
-    if (leaf != 0)
+    if (leaf != NULL)
 	leaf++;
     else
 	leaf = path;
@@ -116,36 +86,36 @@ leaf_of(char *path)
 static char *
 data_of(LIST * list)
 {
-    if (list != 0
-	&& list->data != 0)
+    if (list != NULL
+	&& list->data != NULL)
 	return list->data[list->choice];
-    return 0;
+    return NULL;
 }
 
 static void
 free_list(LIST * list, int reinit)
 {
-    if (list->data != 0) {
+    if (list->data != NULL) {
 	int n;
 
-	for (n = 0; list->data[n] != 0; n++)
+	for (n = 0; list->data[n] != NULL; n++)
 	    free(list->data[n]);
 	free(list->data);
-	list->data = 0;
+	list->data = NULL;
     }
     if (reinit)
 	init_list(list, list->par, list->win, list->mousex);
 }
 
 static void
-add_to_list(LIST * list, char *text)
+add_to_list(LIST * list, const char *text)
 {
     unsigned need;
 
     need = (unsigned) (list->length + 1);
     if (need + 1 > list->allocd) {
 	list->allocd = 2 * (need + 1);
-	if (list->data == 0) {
+	if (list->data == NULL) {
 	    list->data = dlg_malloc(char *, list->allocd);
 	} else {
 	    list->data = dlg_realloc(char *, list->allocd, list->data);
@@ -153,7 +123,7 @@ add_to_list(LIST * list, char *text)
 	assert_ptr(list->data, "add_to_list");
     }
     list->data[list->length++] = dlg_strclone(text);
-    list->data[list->length] = 0;
+    list->data[list->length] = NULL;
 }
 
 static void
@@ -218,7 +188,7 @@ find_choice(char *target, LIST * list)
 static void
 display_list(LIST * list)
 {
-    if (list->win != 0) {
+    if (list->win != NULL) {
 	int n;
 	int x;
 	int y;
@@ -270,7 +240,7 @@ display_list(LIST * list)
 static void
 fix_arrows(LIST * list)
 {
-    if (list->win != 0) {
+    if (list->win != NULL) {
 	int x;
 	int y;
 	int top;
@@ -323,7 +293,7 @@ show_both_lists(char *input, LIST * d_list, LIST * f_list, bool keep)
 static bool
 change_list(int choice, LIST * list)
 {
-    if (data_of(list) != 0) {
+    if (data_of(list) != NULL) {
 	int last = list->length - 1;
 
 	choice += list->choice;
@@ -342,7 +312,7 @@ change_list(int choice, LIST * list)
 static void
 scroll_list(int direction, LIST * list)
 {
-    if (data_of(list) != 0) {
+    if (data_of(list) != NULL) {
 	int length = getmaxy(list->win);
 	if (change_list(direction * length, list))
 	    return;
@@ -359,14 +329,14 @@ compar(const void *a, const void *b)
 static void
 match(char *name, LIST * d_list, LIST * f_list, MATCH * match_list)
 {
-    char *test = leaf_of(name);
-    size_t test_len = strlen(test);
+    const char *test = leaf_of(name);
     char **matches = dlg_malloc(char *, (size_t) (d_list->length + f_list->length));
     size_t data_len = 0;
 
-    if (matches != 0) {
+    if (matches != NULL) {
 	int i;
 	char **new_ptr;
+	size_t test_len = strlen(test);
 
 	for (i = 2; i < d_list->length; i++) {
 	    if (strncmp(test, d_list->data[i], test_len) == 0) {
@@ -378,11 +348,11 @@ match(char *name, LIST * d_list, LIST * f_list, MATCH * match_list)
 		matches[data_len++] = f_list->data[i];
 	    }
 	}
-	if ((new_ptr = dlg_realloc(char *, data_len + 1, matches)) != 0) {
+	if ((new_ptr = dlg_realloc(char *, data_len + 1, matches)) != NULL) {
 	    matches = new_ptr;
 	} else {
 	    free(matches);
-	    matches = 0;
+	    matches = NULL;
 	    data_len = 0;
 	}
     }
@@ -401,13 +371,14 @@ static int
 complete(char *name, LIST * d_list, LIST * f_list, char **buff_ptr)
 {
     MATCH match_list;
-    char *test;
+    const char *test;
     size_t test_len;
     size_t i;
     char *buff;
 
     match(name, d_list, f_list, &match_list);
     if (match_list.length == 0) {
+	free(match_list.data);
 	*buff_ptr = NULL;
 	return 0;
     }
@@ -424,6 +395,7 @@ complete(char *name, LIST * d_list, LIST * f_list, char **buff_ptr)
 	}
     } else {
 	int j;
+	char *next;
 
 	for (i = 0; i < test_len; i++) {
 	    char test_char = test[i];
@@ -439,7 +411,13 @@ complete(char *name, LIST * d_list, LIST * f_list, char **buff_ptr)
 	    } else
 		break;
 	}
-	buff = dlg_realloc(char, i + 1, buff);
+	next = dlg_realloc(char, i + 1, buff);
+	if (next == NULL) {
+	    free(buff);
+	    *buff_ptr = NULL;
+	    return 0;
+	}
+	buff = next;
     }
     free_match(&match_list);
     buff[i] = '\0';
@@ -465,8 +443,8 @@ fill_lists(char *current, char *input, LIST * d_list, LIST * f_list, bool keep)
     if (current[n] == input[n]) {
 	result = FALSE;
 	rescan = (n == 0 && d_list->length == 0);
-    } else if (strchr(current + n, '/') == 0
-	       && strchr(input + n, '/') == 0) {
+    } else if (strchr(current + n, '/') == NULL
+	       && strchr(input + n, '/') == NULL) {
 	result = show_both_lists(input, d_list, f_list, keep);
     } else {
 	rescan = TRUE;
@@ -487,17 +465,17 @@ fill_lists(char *current, char *input, LIST * d_list, LIST * f_list, bool keep)
 	free_list(f_list, TRUE);
 	memcpy(path, current, have);
 	path[have] = '\0';
-	if ((leaf = strrchr(path, '/')) != 0) {
+	if ((leaf = strrchr(path, '/')) != NULL) {
 	    *++leaf = 0;
 	} else {
 	    strcpy(path, "./");
 	    leaf = path + strlen(path);
 	}
 	DLG_TRACE(("opendir '%s'\n", path));
-	if ((dp = opendir(path)) != 0) {
-	    DIRENT *de;
+	if ((dp = opendir(path)) != NULL) {
+	    const DIRENT *de;
 
-	    while ((de = readdir(dp)) != 0) {
+	    while ((de = readdir(dp)) != NULL) {
 		size_t len = NAMLEN(de);
 		if (len == 0 || (len + have + 2) >= MAX_LEN)
 		    continue;
@@ -512,13 +490,13 @@ fill_lists(char *current, char *input, LIST * d_list, LIST * f_list, bool keep)
 	    }
 	    (void) closedir(dp);
 	    /* sort the lists */
-	    if (d_list->data != 0 && d_list->length > 1) {
+	    if (d_list->data != NULL && d_list->length > 1) {
 		qsort(d_list->data,
 		      (size_t) d_list->length,
 		      sizeof(d_list->data[0]),
 		      compar);
 	    }
-	    if (f_list->data != 0 && f_list->length > 1) {
+	    if (f_list->data != NULL && f_list->length > 1) {
 		qsort(f_list->data,
 		      (size_t) f_list->length,
 		      sizeof(f_list->data[0]),
@@ -541,10 +519,10 @@ usable_state(int state, LIST * dirs, LIST * files)
 
     switch (state) {
     case sDIRS:
-	result = (dirs->win != 0) && (data_of(dirs) != 0);
+	result = (dirs->win != NULL) && (data_of(dirs) != NULL);
 	break;
     case sFILES:
-	result = (files->win != 0) && (data_of(files) != 0);
+	result = (files->win != NULL) && (data_of(files) != NULL);
 	break;
     default:
 	result = TRUE;
@@ -557,7 +535,7 @@ usable_state(int state, LIST * dirs, LIST * files)
 			? &f_list \
 			: ((state == sDIRS) \
 			  ? &d_list \
-			  : 0))
+			  : NULL))
 #define NAVIGATE_BINDINGS \
 	DLG_KEYS_DATA( DLGK_FIELD_NEXT, KEY_RIGHT ), \
 	DLG_KEYS_DATA( DLGK_FIELD_NEXT, TAB ), \
@@ -615,13 +593,13 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
     char *input;
     char *completed;
     char current[MAX_LEN + 1];
-    WINDOW *dialog = 0;
-    WINDOW *w_text = 0;
-    WINDOW *w_work = 0;
+    WINDOW *dialog = NULL;
+    WINDOW *w_text = NULL;
+    WINDOW *w_work = NULL;
     const char **buttons = dlg_ok_labels();
     const char *d_label = _("Directories");
     const char *f_label = _("Files");
-    char *partial = 0;
+    char *partial = NULL;
     int min_wide = MIN_WIDE;
     int min_items = height ? 0 : 4;
     LIST d_list, f_list;
@@ -644,6 +622,8 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 #ifdef KEY_RESIZE
   retry:
 #endif
+    if (height > 0)
+	height += MIN_HIGH;
     dlg_auto_size(title, "", &height, &width, MIN_HIGH + min_items, min_wide);
 
     dlg_print_size(height, width);
@@ -670,7 +650,7 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
     tbox_x = (width - tbox_width) / 2;
 
     w_text = dlg_der_window(dialog, tbox_height, tbox_width, tbox_y, tbox_x);
-    if (w_text == 0) {
+    if (w_text == NULL) {
 	result = DLG_EXIT_ERROR;
 	goto finish;
     }
@@ -696,7 +676,7 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
     dbox_x = tbox_x;
 
     w_work = dlg_der_window(dialog, dbox_height, dbox_width, dbox_y, dbox_x);
-    if (w_work == 0) {
+    if (w_work == NULL) {
 	result = DLG_EXIT_ERROR;
 	goto finish;
     }
@@ -716,7 +696,7 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 	fbox_x = tbox_x + dbox_width + (2 * MARGIN);
 
 	w_work = dlg_der_window(dialog, fbox_height, fbox_width, fbox_y, fbox_x);
-	if (w_work == 0) {
+	if (w_work == NULL) {
 	    result = DLG_EXIT_ERROR;
 	    goto finish;
 	}
@@ -834,10 +814,10 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 		} while (!usable_state(state, &d_list, &f_list));
 		continue;
 	    case DLGK_SELECT:
-		completed = 0;
-		if (partial != 0) {
+		completed = NULL;
+		if (partial != NULL) {
 		    free(partial);
-		    partial = 0;
+		    partial = NULL;
 		}
 		if (state == sFILES && !dselect) {
 		    completed = data_of(&f_list);
@@ -848,7 +828,7 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 			completed = partial;
 		    }
 		}
-		if (completed != 0) {
+		if (completed != NULL) {
 		    state = sTEXT;
 		    show_buttons = TRUE;
 		    strcpy(leaf_of(input), completed);
@@ -857,7 +837,7 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 				    0, 0, tbox_width, 0, first);
 		    if (partial != NULL) {
 			free(partial);
-			partial = 0;
+			partial = NULL;
 		    }
 		    continue;
 		} else {	/* if (state < sTEXT) */
@@ -892,14 +872,14 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 		    state = sTEXT;
 		    continue;
 		} else if (key >= DLGK_MOUSE(MOUSE_F)) {
-		    if (f_list.win != 0) {
+		    if (f_list.win != NULL) {
 			state = sFILES;
 			f_list.choice = (key - DLGK_MOUSE(MOUSE_F)) + f_list.offset;
 			display_list(&f_list);
 		    }
 		    continue;
 		} else if (key >= DLGK_MOUSE(MOUSE_D)) {
-		    if (d_list.win != 0) {
+		    if (d_list.win != NULL) {
 			state = sDIRS;
 			d_list.choice = (key - DLGK_MOUSE(MOUSE_D)) + d_list.offset;
 			display_list(&d_list);
@@ -937,7 +917,7 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
     free_list(&f_list, FALSE);
 
   finish:
-    if (partial != 0)
+    if (partial != NULL)
 	free(partial);
     return result;
 }

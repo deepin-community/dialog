@@ -1,7 +1,7 @@
 #!@SHELL@
-# $Id: dialog-config.in,v 1.13 2019/09/26 00:50:46 tom Exp $
+# $Id: dialog-config.in,v 1.29 2025/01/16 21:29:50 tom Exp $
 ##############################################################################
-# Copyright (c) 2007-2012,2019 Thomas E. Dickey                              #
+# Copyright (c) 2007-2024,2025 Thomas E. Dickey                              #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -28,6 +28,11 @@
 # authorization.                                                             #
 ##############################################################################
 
+LANG=C;		export LANG
+LANGUAGE=C;	export LANGUAGE
+LC_ALL=C;	export LC_ALL
+LC_CTYPE=C;	export LC_CTYPE
+
 prefix="@prefix@"
 exec_prefix="@exec_prefix@"
 datarootdir="@datarootdir@"
@@ -35,11 +40,11 @@ datarootdir="@datarootdir@"
 same_prefix=yes
 same_exec_prefix=yes
 
-THIS="@PACKAGE@"
+THIS="@LIB_ROOTNAME@"
 
-test $# = 0 && exec @SHELL@ "$0" --error
+[ $# = 0 ] && exec @SHELL@ "$0" --error
 
-while test $# -gt 0; do
+while [ $# -gt 0 ]; do
 
 	# (re)evaluate symbols that may depend upon $prefix
 	if [ "x$same_prefix" != "xyes" ]
@@ -52,12 +57,18 @@ while test $# -gt 0; do
 	fi
 
 	eval bindir='"@bindir@"'
-	eval includedir='"@includedir@"'
 	eval libdir='"@libdir@"'
 	eval datadir='"@datadir@"'
+	eval includedir='"@includedir@"'
 	eval mandir='"@mandir@"'
 
-	[ -z "$includedir" ] && includedir="${prefix}/include" 
+	[ -z "$includedir" ] && includedir="${prefix}/include"
+
+	need_include=
+	[ "$includedir" != /usr/include ] && need_include="-I$includedir"
+
+	need_subinclude=
+	[ "@SUB_INC@" = yes ] && need_subinclude="-I$includedir/$THIS"
 
 	eval LDFLAGS='"@LDFLAGS@"'
 	eval LIBS='"@LIBS@"'
@@ -68,7 +79,7 @@ while test $# -gt 0; do
 	found=no
 	for opt in $LDFLAGS $LIBS
 	do
-		if [ "x$-L${libdir}" = "x$opt" ]
+		if [ "x-L${libdir}" = "x$opt" ]
 		then
 			found=yes
 			break
@@ -88,16 +99,71 @@ while test $# -gt 0; do
 	# There is no portable way to find the list of standard library
 	# directories.  Require a POSIX shell anyway, to keep this simple.
 	lib_flags=
-	for opt in $LDFLAGS $LIBS
+	for opt in -L$libdir $LDFLAGS $LIBS
 	do
 		case $opt in
+		-specs*) # ignore linker specs-files which were used to build library
+			continue
+			;;
+		-Wl,-z,*) # ignore flags used to manipulate shared image
+			continue
+			;;
+		-Wl,--dynamic-linker*) # ignore ELF interpreter
+			continue
+			;;
+		-Wl,--as-needed|-Wl,--build-id=*|-Wl,-dT,*|-Wl,-T,*)
+			continue
+			;;
 		-L*)
-			[ -d ${opt##-L} ] || continue
-			case ${opt##-L} in
+			lib_check=`echo "x$opt" | sed -e 's/^.-L//'`
+			[ -d "$lib_check" ] || continue
+			case "$lib_check" in
 			@LD_SEARCHPATH@) # skip standard libdir
-				continue
+				if [ "$lib_check" = "$libdir" ]
+				then
+					lib_first=yes
+					IFS_save="$IFS"
+					IFS='|'
+					LIBDIRS="@LD_SEARCHPATH@"
+					for lib_check in $LIBDIRS
+					do
+						if [ -d "$lib_check" ]
+						then
+							if [ "$lib_check" != "$libdir" ]
+							then
+								lib_first=no
+							fi
+							break
+						fi
+					done
+					IFS="$IFS_save"
+					[ $lib_first = yes ] && continue
+					found=no
+					for check in $lib_flags
+					do
+						if [ "x$check" = "x$opt" ]
+						then
+							found=yes
+							break
+						fi
+					done
+					[ $found = yes ] && continue
+					:
+				else
+					continue
+				fi
 				;;
 			*)
+				found=no
+				for check in $lib_flags
+				do
+					if [ "x$check" = "x$opt" ]
+					then
+						found=yes
+						break
+					fi
+				done
+				[ $found = yes ] && continue
 				;;
 			esac
 			;;
@@ -118,7 +184,7 @@ while test $# -gt 0; do
 	# basic configuration
 	--prefix=*)
 		prefix="$ARG"
-		test -z "$exec_prefix" && exec_prefix="$ARG"
+		[ -z "$exec_prefix" ] && exec_prefix="$ARG"
 		same_prefix=no
 		;;
 	--prefix)
@@ -132,18 +198,58 @@ while test $# -gt 0; do
 		echo "$exec_prefix"
 		;;
 	# compile/link
-	--cflags|--cflags-only-I)
-		INCS=
-		if test "$includedir" != /usr/include ; then
-			INCS="-I$includedir"
-		fi
-		sed -e 's,^[ ]*,,' -e 's, [ ]*, ,g' -e 's,[ ]*$,,' <<-ENDECHO
-			$INCS
-ENDECHO
+	--cflags)
+		OPTS=
+		for opt in @CFLAGS@ @CPPFLAGS@ $need_subinclude
+		do
+			case "x$opt" in
+			x-[DIU]*)
+				OPTS="$OPTS $opt"
+				[ "x$opt" = "x$need_include" ] && need_include=
+				;;
+			x-Wl,*)
+				OPTS="$OPTS $opt"
+				;;
+			x-[OQW]*|x-g)
+				;;
+			*)
+				OPTS="$OPTS $opt"
+				;;
+			esac
+		done
+		printf "%s\n" "$OPTS $need_include"
+		;;
+	--cflags-only-I)
+		OPTS=
+		for opt in @CFLAGS@ @CPPFLAGS@ $need_subinclude
+		do
+			case "x$opt" in
+			x-I*)
+				OPTS="$OPTS $opt"
+				[ "x$opt" = "x$need_include" ] && need_include=
+				;;
+			*)
+				;;
+			esac
+		done
+		printf "%s\n" "$OPTS $need_include"
 		;;
 	--cflags-only-other)
-		# no -D/-U options should be needed
-		echo
+		OPTS=
+		for opt in @CFLAGS@ @CPPFLAGS@
+		do
+			case "x$opt" in
+			x-Wl,*)
+				OPTS="$OPTS $opt"
+				;;
+			x-[IOQW]*|x-g)
+				;;
+			*)
+				OPTS="$OPTS $opt"
+				;;
+			esac
+		done
+		printf "%s\n" "$OPTS"
 		;;
 	--libs)
 		OPTS=
@@ -152,7 +258,7 @@ ENDECHO
 			[ -n "$OPTS" ] && OPTS="$OPTS "
 			OPTS="${OPTS}${opt}"
 		done
-		printf "%s\n" "$OPTS"
+		printf '%s\n' "$OPTS"
 		;;
 	--libs-only-L)
 		OPTS=
@@ -165,7 +271,7 @@ ENDECHO
 				;;
 			esac
 		done
-		printf "%s\n" "$OPTS"
+		printf '%s\n' "$OPTS"
 		;;
 	--libs-only-l)
 		OPTS=
@@ -178,7 +284,7 @@ ENDECHO
 				;;
 			esac
 		done
-		printf "%s\n" "$OPTS"
+		printf '%s\n' "$OPTS"
 		;;
 	--libs-only-other)
 		OPTS=
@@ -193,7 +299,7 @@ ENDECHO
 				;;
 			esac
 		done
-		printf "%s\n" "$OPTS"
+		printf '%s\n' "$OPTS"
 		;;
 	# identification
 	--version)
@@ -209,6 +315,13 @@ ENDECHO
 	--datadir)
 		echo "${datadir}"
 		;;
+	--includedir)
+		INCS=
+		if [ "${includedir}" != /usr/include ]; then
+			INCS="${includedir}"
+		fi
+		echo "$INCS"
+		;;
 	--libdir)
 		echo "${libdir}"
 		;;
@@ -221,27 +334,30 @@ ENDECHO
 Usage: ${THIS}-config [options]
 
 Options:
-  --prefix           echos the package-prefix of ${THIS}
-  --prefix=ARG       sets the package-prefix of ${THIS}
-  --exec-prefix      echos the executable-prefix of ${THIS}
-  --exec-prefix=ARG  sets the executable-prefix of ${THIS}
+  --prefix            echos the package-prefix of ${THIS}
+  --prefix=ARG        sets the package-prefix of ${THIS}
+  --exec-prefix       echos the executable-prefix of ${THIS}
+  --exec-prefix=ARG   sets the executable-prefix of ${THIS}
 
-  --cflags           echos the C compiler flags needed to compile with ${THIS}
-  --libs             echos the libraries needed to link with ${THIS}
+  --cflags            echos the C compiler flags needed to compile for ${THIS}
+  --cflags-only-I     echos only -I C compiler flags needed with ${THIS}
+  --cflags-only-other echos only C compiler flags other than -I for ${THIS}
+  --libs              echos the libraries needed to link with ${THIS}
 
-  --libs-only-L      echos -L linker options (search path) for ${THIS}
-  --libs-only-l      echos -l linker options (libraries) for ${THIS}
-  --libs-only-other  echos linker options other than -L/-l
+  --libs-only-L       echos -L linker options (search path) for ${THIS}
+  --libs-only-l       echos -l linker options (libraries) for ${THIS}
+  --libs-only-other   echos linker options other than -L/-l
 
-  --version          echos the release+patchdate version of ${THIS}
-  --abi-version      echos the ABI version of ${THIS}
+  --version           echos the release+patchdate version of ${THIS}
+  --abi-version       echos the ABI version of ${THIS}
 
-  --bindir           echos the directory containing ${THIS} programs
-  --datadir          echos the directory containing ${THIS} data
-  --libdir           echos the directory containing ${THIS} libraries
-  --mandir           echos the directory containing ${THIS} manual pages
+  --bindir            echos the directory containing ${THIS} programs
+  --datadir           echos the directory containing ${THIS} data
+  --includedir        echos the directory containing ${THIS} header files
+  --libdir            echos the directory containing ${THIS} libraries
+  --mandir            echos the directory containing ${THIS} manual pages
 
-  --help             prints this message
+  --help              prints this message
 ENDHELP
 		;;
 	--error|*)
@@ -251,4 +367,5 @@ ENDHELP
 	esac
 	shift
 done
+# vi:ts=4 sw=4
 # vile:shmode

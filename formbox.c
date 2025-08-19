@@ -1,9 +1,9 @@
 /*
- *  $Id: formbox.c,v 1.102 2020/11/23 00:46:57 tom Exp $
+ *  $Id: formbox.c,v 1.109 2025/01/09 22:33:20 tom Exp $
  *
  *  formbox.c -- implements the form (i.e., some pairs label/editbox)
  *
- *  Copyright 2003-2019,2020	Thomas E. Dickey
+ *  Copyright 2003-2024,2025	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -24,7 +24,7 @@
  *	Valery Reznic (valery_reznic@users.sourceforge.net)
  */
 
-#include <dialog.h>
+#include <dlg_internals.h>
 #include <dlg_keys.h>
 
 #define LLEN(n) ((n) * FORMBOX_TAGS)
@@ -40,13 +40,13 @@
 #define ItemHelp(i)     (dialog_vars.item_help ? items[LLEN(i) + 8] : dlg_strempty())
 
 static bool
-is_readonly(DIALOG_FORMITEM * item)
+is_readonly(const DIALOG_FORMITEM * item)
 {
     return ((item->type & 2) != 0) || (item->text_flen <= 0);
 }
 
 static bool
-is_hidden(DIALOG_FORMITEM * item)
+is_hidden(const DIALOG_FORMITEM * item)
 {
     return ((item->type & 1) != 0);
 }
@@ -75,7 +75,7 @@ move_past(WINDOW *win, int y, int x)
  * Print form item
  */
 static int
-print_item(WINDOW *win, DIALOG_FORMITEM * item, int scrollamt, bool choice)
+print_item(WINDOW *win, const DIALOG_FORMITEM * item, int scrollamt, bool choice)
 {
     int count = 0;
     int len;
@@ -180,7 +180,7 @@ form_limit(DIALOG_FORMITEM item[])
 {
     int n;
     int limit = 0;
-    for (n = 0; item[n].name != 0; ++n) {
+    for (n = 0; item[n].name != NULL; ++n) {
 	if (limit < item[n].name_y)
 	    limit = item[n].name_y;
 	if (limit < item[n].text_y)
@@ -311,7 +311,7 @@ scroll_next(WINDOW *win, DIALOG_FORMITEM item[], int stepsize, int *choice, int 
     if (result) {
 	int n;
 
-	for (n = 0; item[n].name != 0; ++n) {
+	for (n = 0; item[n].name != NULL; ++n) {
 	    if (item[n].text_flen > 0) {
 		int new_row = MIN(item[n].text_y, item[n].name_y);
 		if (abs(new_row - target) < abs(old_row - target)) {
@@ -394,7 +394,6 @@ make_FORM_ELTs(DIALOG_FORMITEM * item,
 	    sprintf(item[i].text, "%.*s", item[i].text_ilen, old_text);
 
 	    if (item[i].text_free) {
-		item[i].text_free = FALSE;
 		free(old_text);
 	    }
 	    item[i].text_free = TRUE;
@@ -410,9 +409,9 @@ dlg_default_formitem(DIALOG_FORMITEM * items)
 {
     int result = 0;
 
-    if (dialog_vars.default_item != 0) {
+    if (dialog_vars.default_item != NULL) {
 	int count = 0;
-	while (items->name != 0) {
+	while (items->name != NULL) {
 	    if (!strcmp(dialog_vars.default_item, items->name)) {
 		result = count;
 		break;
@@ -491,6 +490,7 @@ dlg_form(const char *title,
 #ifdef KEY_RESIZE
     int old_height = height;
     int old_width = width;
+    int old_fhigh = form_height;
 #endif
 
     int form_width;
@@ -646,7 +646,6 @@ dlg_form(const char *title,
 	    if (field_changed)
 		chr_offset = 0;
 	    current = &items[choice];
-	    dialog_vars.max_input = current->text_ilen;
 	    dlg_item_help(current->help);
 	    dlg_show_string(form, current->text, chr_offset,
 			    form_active_text_attr,
@@ -786,6 +785,7 @@ dlg_form(const char *title,
 		/* reset data */
 		height = old_height;
 		width = old_width;
+		form_height = old_fhigh;
 		free(prompt);
 		_dlg_resize_cleanup(dialog);
 		dlg_unregister_window(form);
@@ -867,9 +867,13 @@ dlg_form(const char *title,
 	}
 
 	if (state == sTEXT) {	/* Input box selected */
-	    if (!is_readonly(current))
+	    if (!is_readonly(current)) {
+		int save = dialog_vars.max_input;
+		dialog_vars.max_input = current->text_ilen;
 		edit = dlg_edit_string(current->text, &chr_offset, key,
 				       fkey, first);
+		dialog_vars.max_input = save;
+	    }
 	    if (edit) {
 		dlg_show_string(form, current->text, chr_offset,
 				form_active_text_attr,
@@ -899,7 +903,7 @@ void
 dlg_free_formitems(DIALOG_FORMITEM * items)
 {
     int n;
-    for (n = 0; items[n].name != 0; ++n) {
+    for (n = 0; items[n].name != NULL; ++n) {
 	if (items[n].name_free)
 	    free(items[n].name);
 	if (items[n].text_free)

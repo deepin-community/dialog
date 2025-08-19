@@ -1,9 +1,9 @@
 /*
- *  $Id: mixedgauge.c,v 1.36 2020/03/26 03:22:44 tom Exp $
+ *  $Id: mixedgauge.c,v 1.40 2025/01/09 22:33:20 tom Exp $
  *
  *  mixedgauge.c -- implements the mixedgauge dialog
  *
- *  Copyright 2007-2019,2020	Thomas E. Dickey
+ *  Copyright 2007-2024,2025	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -24,7 +24,7 @@
  *  (but different interface design).
  */
 
-#include <dialog.h>
+#include <dlg_internals.h>
 
 #define LLEN(n) ((n) * MIXEDGAUGE_TAGS)
 #define ItemData(i)    &items[LLEN(i)]
@@ -51,7 +51,7 @@ status_string(char *given, char **freeMe)
 {
     const char *result;
 
-    *freeMe = 0;
+    *freeMe = NULL;
     if (isdigit(UCH(*given))) {
 	switch (*given) {
 	case '0':
@@ -91,13 +91,14 @@ status_string(char *given, char **freeMe)
     } else if (*given == '-') {
 	size_t need = strlen(++given) + 4;
 	char *temp = dlg_malloc(char, need);
+	assert_ptr(temp, "mixedguage: status_string");
 	*freeMe = temp;
 	sprintf(temp, "%3s%%", given);
 	result = temp;
     } else if (!isspace(UCH(*given))) {
 	result = given;
     } else {
-	result = 0;
+	result = NULL;
     }
     return result;
 }
@@ -117,7 +118,7 @@ myprint_status(DIALOG_MIXEDGAUGE * dlg)
     int last_y = 0, last_x = 0;
     int j, xxx;
     float percent;
-    char *freeMe = 0;
+    char *freeMe = NULL;
 
     bm -= (2 * MARGIN);
     getyx(win, last_y, last_x);
@@ -130,8 +131,10 @@ myprint_status(DIALOG_MIXEDGAUGE * dlg)
 	    break;
 
 	status = status_string(dlg->list[item].text, &freeMe);
-	if (status == 0 || *status == 0)
+	if (status == NULL || *status == 0) {
+	    free(freeMe);
 	    continue;
+	}
 
 	(void) wmove(win, y, 2 * MARGIN);
 	dlg_attrset(win, dialog_attr);
@@ -177,7 +180,7 @@ myprint_status(DIALOG_MIXEDGAUGE * dlg)
 	(void) waddch(win, ']');
 	(void) wnoutrefresh(win);
     }
-    if (win != 0)
+    if (win != NULL)
 	wmove(win, last_y, last_x);
 }
 
@@ -296,7 +299,7 @@ dlg_begin_mixedgauge(DIALOG_MIXEDGAUGE * dlg,
 	dlg->min_height = MIN_HIGH + aItemNo;
 	dlg->min_width = MIN_WIDE + dlg->len_name + GUTTER + dlg->len_text;
 
-	if (dlg->prompt != 0 && *(dlg->prompt) != 0)
+	if (dlg->prompt != NULL && *(dlg->prompt) != 0)
 	    dlg->min_height += (2 * MARGIN);
 #ifdef KEY_RESIZE
 	nodelay(stdscr, TRUE);
@@ -334,7 +337,7 @@ dlg_begin_mixedgauge(DIALOG_MIXEDGAUGE * dlg,
     dlg_draw_title(dlg->dialog, dlg->title);
     dlg_draw_helpline(dlg->dialog, FALSE);
 
-    if ((dlg->prompt != 0 && *(dlg->prompt) != 0)
+    if ((dlg->prompt != NULL && *(dlg->prompt) != 0)
 	&& wmove(dlg->dialog, dlg->item_no, 0) != ERR) {
 	dlg->caption = dlg_sub_window(dlg->dialog,
 				      dlg->height - dlg->item_no - (2 * MARGIN),

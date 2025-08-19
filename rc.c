@@ -1,9 +1,9 @@
 /*
- *  $Id: rc.c,v 1.60 2020/11/25 00:06:40 tom Exp $
+ *  $Id: rc.c,v 1.64 2025/01/09 22:33:20 tom Exp $
  *
  *  rc.c -- routines for processing the configuration file
  *
- *  Copyright 2000-2019,2020	Thomas E. Dickey
+ *  Copyright 2000-2024,2025	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -24,13 +24,11 @@
  *	Savio Lam (lam836@cs.cuhk.hk)
  */
 
-#include <dialog.h>
-
+#include <dlg_internals.h>
 #include <dlg_keys.h>
 
 #ifdef HAVE_COLOR
 #include <dlg_colors.h>
-#include <dlg_internals.h>
 
 #define L_PAREN '('
 #define R_PAREN ')'
@@ -124,6 +122,11 @@ static const vars_st vars[] =
      VAL_BOOL,
      "Make tab-traversal for checklist, etc., include the list."},
 
+    {"use_scrollbar",
+     &dialog_state.use_scrollbar,
+     VAL_BOOL,
+     "Show scrollbar in dialog boxes?"},
+
 #ifdef HAVE_COLOR
     {"use_shadow",
      &dialog_state.use_shadow,
@@ -146,7 +149,7 @@ skip_whitespace(char *str, int n)
 }
 
 static int
-skip_keyword(char *str, int n)
+skip_keyword(const char *str, int n)
 {
     while (isalnum(UCH(str[n])) && str[n] != '\0')
 	n++;
@@ -536,7 +539,7 @@ dlg_parse_rc(void)
     char *value;
     char *filename;
     int result = 0;
-    FILE *rc_file = 0;
+    FILE *rc_file = NULL;
     char *params;
 
     /*
