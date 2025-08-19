@@ -1,9 +1,9 @@
 /*
- *  $Id: pause.c,v 1.48 2020/11/23 00:38:19 tom Exp $
+ *  $Id: pause.c,v 1.50 2025/01/09 22:33:20 tom Exp $
  *
  *  pause.c -- implements the pause dialog
  *
- *  Copyright 2004-2019,2020	Thomas E. Dickey
+ *  Copyright 2004-2022,2025	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -24,7 +24,7 @@
  *	Yura Kalinichenko
  */
 
-#include <dialog.h>
+#include <dlg_internals.h>
 #include <dlg_keys.h>
 
 #define MY_TIMEOUT 50
@@ -39,7 +39,7 @@
  * A pause box displays a meter along the bottom of the box.  The meter
  * indicates how many seconds remain until the end of the pause.  The pause
  * exits when timeout is reached (status OK) or the user presses:
- *   OK button (status OK) 
+ *   OK button (status OK)
  *   CANCEL button (status CANCEL)
  *   Esc key (status ESC)
  *

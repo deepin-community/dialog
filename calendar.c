@@ -1,9 +1,9 @@
 /*
- * $Id: calendar.c,v 1.106 2020/11/23 09:03:49 tom Exp $
+ * $Id: calendar.c,v 1.112 2025/01/09 22:33:20 tom Exp $
  *
  *  calendar.c -- implements the calendar box
  *
- *  Copyright 2001-2019,2020	Thomas E. Dickey
+ *  Copyright 2001-2024,2025	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -23,14 +23,6 @@
 
 #include <dlg_internals.h>
 #include <dlg_keys.h>
-
-#include <time.h>
-
-#ifdef HAVE_STDINT_H
-#include <stdint.h>
-#else
-#define intptr_t long
-#endif
 
 #define ONE_DAY  (60 * 60 * 24)
 
@@ -52,7 +44,7 @@ typedef enum {
 
 struct _box;
 
-typedef int (*BOX_DRAW) (struct _box *, struct tm *);
+typedef int (*BOX_DRAW) (struct _box *, const struct tm *);
 
 typedef struct _box {
     WINDOW *parent;
@@ -81,7 +73,7 @@ nameOfDayOfWeek(int n)
     }
     n %= MAX_DAYS;
 #ifdef ENABLE_NLS
-    if (cached_days[n] == 0) {
+    if (cached_days[n] == NULL) {
 	const nl_item items[MAX_DAYS] =
 	{
 	    ABDAY_1, ABDAY_2, ABDAY_3, ABDAY_4, ABDAY_5, ABDAY_6, ABDAY_7
@@ -90,7 +82,7 @@ nameOfDayOfWeek(int n)
 	memset(shown, 0, sizeof(shown));
     }
 #endif
-    if (cached_days[n] == 0) {
+    if (cached_days[n] == NULL) {
 	static const char *posix_days[MAX_DAYS] =
 	{
 	    "Sunday",
@@ -132,7 +124,7 @@ nameOfMonth(int n)
     }
     n %= MAX_MONTHS;
 #ifdef ENABLE_NLS
-    if (cached_months[n] == 0) {
+    if (cached_months[n] == NULL) {
 	const nl_item items[MAX_MONTHS] =
 	{
 	    MON_1, MON_2, MON_3, MON_4, MON_5, MON_6,
@@ -142,7 +134,7 @@ nameOfMonth(int n)
 	memset(shown, 0, sizeof(shown));
     }
 #endif
-    if (cached_months[n] == 0) {
+    if (cached_months[n] == NULL) {
 	static const char *posix_mons[MAX_MONTHS] =
 	{
 	    "January",
@@ -209,7 +201,7 @@ days_per_month(int year, int month)
 }
 
 static int
-days_in_month(struct tm *current, int offset /* -1, 0, 1 */ )
+days_in_month(const struct tm *current, int offset /* -1, 0, 1 */ )
 {
     int year = current->tm_year + 1900;
     int month = current->tm_mon + offset;
@@ -225,7 +217,7 @@ days_per_year(int year)
 }
 
 static int
-days_in_year(struct tm *current, int offset /* -1, 0, 1 */ )
+days_in_year(const struct tm *current, int offset /* -1, 0, 1 */ )
 {
     return days_per_year(current->tm_year + 1900 + offset);
 }
@@ -242,7 +234,7 @@ days_in_year(struct tm *current, int offset /* -1, 0, 1 */ )
 static int
 day_of_week(int y, int m, int d)
 {
-    static int t[] =
+    static const int t[] =
     {
 	0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4
     };
@@ -327,7 +319,7 @@ getisoweeks(int year, int month)
 }
 
 static int
-day_cell_number(struct tm *current)
+day_cell_number(const struct tm *current)
 {
     int cell;
     cell = current->tm_mday - ((6 + current->tm_mday - current->tm_wday) % MAX_DAYS);
@@ -367,7 +359,7 @@ next_or_previous(int key, int two_d)
  * Draw the day-of-month selection box
  */
 static int
-draw_day(BOX * data, struct tm *current)
+draw_day(BOX * data, const struct tm *current)
 {
     int cell_wide = MON_WIDE;
     int y, x, this_x;
@@ -376,7 +368,7 @@ draw_day(BOX * data, struct tm *current)
     int mday;
     int week = 0;
     int windx = 0;
-    int *weeks = 0;
+    int *weeks = NULL;
     int last = days_in_month(current, 0);
     int prev = days_in_month(current, -1);
 
@@ -453,7 +445,7 @@ draw_day(BOX * data, struct tm *current)
  * Draw the month-of-year selection box
  */
 static int
-draw_month(BOX * data, struct tm *current)
+draw_month(BOX * data, const struct tm *current)
 {
     int month;
 
@@ -477,7 +469,7 @@ draw_month(BOX * data, struct tm *current)
  * Draw the year selection box
  */
 static int
-draw_year(BOX * data, struct tm *current)
+draw_year(BOX * data, const struct tm *current)
 {
     int year = current->tm_year + 1900;
 
@@ -515,7 +507,7 @@ init_object(BOX * data,
     data->window = dlg_der_window(data->parent,
 				  data->height, data->width,
 				  data->y, data->x);
-    if (data->window == 0)
+    if (data->window == NULL)
 	return -1;
 
     dlg_mouse_setbase(getbegx(parent), getbegy(parent));
@@ -539,15 +531,15 @@ read_locale_setting(const char *name, int which)
     int result = -1;
 
     sprintf(command, "locale %s", name);
-    if ((fp = dlg_popen(command, "r")) != 0) {
+    if ((fp = dlg_popen(command, "r")) != NULL) {
 	int count = 0;
 	char buf[80];
 
-	while (fgets(buf, (int) sizeof(buf) - 1, fp) != 0) {
+	while (fgets(buf, (int) sizeof(buf) - 1, fp) != NULL) {
 	    if (++count > which) {
-		char *next = 0;
+		char *next = NULL;
 		long check = strtol(buf, &next, 0);
-		if (next != 0 &&
+		if (next != NULL &&
 		    next != buf &&
 		    *next == '\n') {
 		    result = (int) check;
@@ -565,12 +557,12 @@ static int
 WeekStart(void)
 {
     int result = 0;
-    char *option = dialog_vars.week_start;
-    if (option != 0) {
+    const char *option = dialog_vars.week_start;
+    if (option != NULL) {
 	if (option[0]) {
-	    char *next = 0;
+	    char *next = NULL;
 	    long check = strtol(option, &next, 0);
-	    if (next == 0 ||
+	    if (next == NULL ||
 		next == option ||
 		*next != '\0') {
 		if (!strcmp(option, "locale")) {
@@ -627,29 +619,29 @@ CleanupResult(int code, WINDOW *dialog, char *prompt, DIALOG_VARS * save_vars)
 {
     int n;
 
-    if (dialog != 0)
+    if (dialog != NULL)
 	dlg_del_window(dialog);
     dlg_mouse_free_regions();
-    if (prompt != 0)
+    if (prompt != NULL)
 	free(prompt);
     dlg_restore_vars(save_vars);
 
     for (n = 0; n < MAX_DAYS; ++n) {
 	free(cached_days[n]);
-	cached_days[n] = 0;
+	cached_days[n] = NULL;
     }
     for (n = 0; n < MAX_MONTHS; ++n) {
 	free(cached_months[n]);
-	cached_months[n] = 0;
+	cached_months[n] = NULL;
     }
 
     return code;
 }
 
 static void
-trace_date(struct tm *current, struct tm *old)
+trace_date(struct tm *current, const struct tm *old)
 {
-    bool changed = (old == 0 ||
+    bool changed = (old == NULL ||
 		    current->tm_mday != old->tm_mday ||
 		    current->tm_mon != old->tm_mon ||
 		    current->tm_year != old->tm_year);
@@ -748,7 +740,7 @@ dialog_calendar(const char *title,
     now_time = time((time_t *) 0);
     current = *localtime(&now_time);
 
-#if HAVE_MKTIME
+#ifdef HAVE_MKTIME
     current.tm_isdst = -1;
     if (year >= 1900) {
 	current.tm_year = year - 1900;
@@ -757,7 +749,7 @@ dialog_calendar(const char *title,
 	current.tm_mon = month - 1;
     }
     if (day > 0 && day <= days_per_month(current.tm_year + 1900,
-					 current.tm_mon + 1)) {
+					 current.tm_mon)) {
 	current.tm_mday = day;
     }
     now_time = mktime(&current);
@@ -871,11 +863,11 @@ dialog_calendar(const char *title,
 	int key2;
 	BOX *obj = (state == sDAY ? &dy_box
 		    : (state == sMONTH ? &mn_box :
-		       (state == sYEAR ? &yr_box : 0)));
+		       (state == sYEAR ? &yr_box : NULL)));
 
 	button = (state < 0) ? 0 : state;
 	dlg_draw_buttons(dialog, height - 2, 0, buttons, button, FALSE, width);
-	if (obj != 0)
+	if (obj != NULL)
 	    dlg_set_focus(dialog, obj->window);
 
 	key = dlg_mouse_wgetch(dialog, &fkey);
@@ -943,7 +935,7 @@ dialog_calendar(const char *title,
 			DLG_TRACE(("# mouseclick decoded %d\n", step));
 		    }
 		}
-		if (obj != 0) {
+		if (obj != NULL) {
 		    if (key2 < 0) {
 			step = next_or_previous(key, (obj == &dy_box));
 		    }
@@ -998,7 +990,7 @@ dialog_calendar(const char *title,
 	sprintf(dst, "%02d/%02d/%0d", \
 		src.tm_mday, src.tm_mon + 1, src.tm_year + 1900)
 #ifdef HAVE_STRFTIME
-    if (dialog_vars.date_format != 0) {
+    if (dialog_vars.date_format != NULL) {
 	size_t used = strftime(buffer,
 			       sizeof(buffer) - 1,
 			       dialog_vars.date_format,

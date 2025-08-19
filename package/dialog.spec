@@ -1,21 +1,21 @@
 Summary: dialog - display dialog boxes from shell scripts
 %define AppProgram dialog
 %define AppVersion 1.3
-%define AppRelease 20201126
+%define AppRelease 20250116
 %define ActualProg c%{AppProgram}
-# $XTermId: dialog.spec,v 1.144 2020/11/26 16:29:01 tom Exp $
+# $XTermId: dialog.spec,v 1.198 2025/01/15 22:24:33 tom Exp $
 Name: %{ActualProg}
 Version: %{AppVersion}
 Release: %{AppRelease}
 License: LGPL
 Group: Applications/System
-URL: ftp://ftp.invisible-island.net/%{AppProgram}
-Source0: %{AppProgram}-%{AppVersion}-%{AppRelease}.tgz
+URL: https://invisible-island.net/%{AppProgram}
+Source0: https://invisible-island.net/archives/%{AppProgram}-%{AppVersion}-%{AppRelease}.tgz
 Packager: Thomas Dickey <dickey@invisible-island.net>
 
-%package	devel
-Summary:	Development headers/library for the dialog package.
-Requires:	%{ActualProg}, ncurses-devel
+%package devel
+Summary: Development headers/library for the dialog package.
+Requires: %{ActualProg}, ncurses-devel
 
 %description
 Dialog is a program that will let you present a variety of questions or
@@ -54,9 +54,12 @@ INSTALL_PROGRAM='${INSTALL}' \
   --with-package=%{ActualProg} \
   --enable-header-subdir \
   --enable-nls \
+  --enable-pc-files \
+  --enable-stdnoreturn \
   --enable-widec \
   --with-shared \
   --with-ncursesw \
+  --with-shlib-version=abi \
   --with-versioned-syms \
   --disable-rpath-hack
 
@@ -65,14 +68,12 @@ make
 %install
 [ "$RPM_BUILD_ROOT" != "/" ] && rm -rf $RPM_BUILD_ROOT
 
-make install      DESTDIR=$RPM_BUILD_ROOT
-make install-full DESTDIR=$RPM_BUILD_ROOT
+make install          DESTDIR=$RPM_BUILD_ROOT
+make install-full     DESTDIR=$RPM_BUILD_ROOT
+make install-examples DESTDIR=$RPM_BUILD_ROOT
 
 strip $RPM_BUILD_ROOT%{_bindir}/%{ActualProg}
 chmod 755 $RPM_BUILD_ROOT%{_libdir}/lib%{ActualProg}.so.*
-
-%clean
-[ "$RPM_BUILD_ROOT" != "/" ] && rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root)
@@ -80,6 +81,8 @@ chmod 755 $RPM_BUILD_ROOT%{_libdir}/lib%{ActualProg}.so.*
 %{_mandir}/man1/%{ActualProg}.*
 %{_libdir}/lib%{ActualProg}.so.*
 %{_datadir}/locale/*/LC_MESSAGES/%{ActualProg}.mo 
+%doc README COPYING CHANGES
+%{_datadir}/doc/%{ActualProg}/*
 
 %files devel
 %defattr(-,root,root)
@@ -89,10 +92,23 @@ chmod 755 $RPM_BUILD_ROOT%{_libdir}/lib%{ActualProg}.so.*
 %{_includedir}/%{ActualProg}/dlg_config.h
 %{_includedir}/%{ActualProg}/dlg_keys.h
 %{_libdir}/lib%{ActualProg}.so
+%{_libdir}/pkgconfig/%{ActualProg}.pc
 %{_mandir}/man3/%{ActualProg}.*
 
 %changelog
 # each patch should add its ChangeLog entries here
+
+* Thu Feb 09 2023 Thomas Dickey
+- add ".pc" file
+
+* Tue Feb 07 2023 Thomas Dickey
+- install examples in doc directory
+
+* Wed Feb 01 2023 Thomas Dickey
+- change shared-library configuration to ABI
+
+* Wed Mar 24 2021 Thomas Dickey
+- use C11 _Noreturn
 
 * Wed Jul 24 2019 Thomas Dickey
 - split-out "-devel" package

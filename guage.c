@@ -1,9 +1,9 @@
 /*
- *  $Id: guage.c,v 1.83 2020/03/27 20:54:43 tom Exp $
+ *  $Id: guage.c,v 1.87 2025/01/09 22:33:20 tom Exp $
  *
  *  guage.c -- implements the gauge dialog
  *
- *  Copyright 2000-2019,2020	Thomas E. Dickey
+ *  Copyright 2000-2024,2025	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -24,9 +24,7 @@
  *	Marc Ewing, Red Hat Software
  */
 
-#include <dialog.h>
-
-#include <errno.h>
+#include <dlg_internals.h>
 
 #define MY_LEN (MAX_LEN)/2
 
@@ -51,12 +49,12 @@ typedef struct _my_obj {
 static MY_OBJ *all_objects;
 
 static int
-valid(MY_OBJ * obj)
+valid(const MY_OBJ * obj)
 {
     MY_OBJ *list = all_objects;
     int result = 0;
 
-    while (list != 0) {
+    while (list != NULL) {
 	if (list == obj) {
 	    result = 1;
 	    break;
@@ -67,13 +65,13 @@ valid(MY_OBJ * obj)
 }
 
 static void
-delink(MY_OBJ * obj)
+delink(const MY_OBJ * obj)
 {
     MY_OBJ *p = all_objects;
-    MY_OBJ *q = 0;
-    while (p != 0) {
+    MY_OBJ *q = NULL;
+    while (p != NULL) {
 	if (p == obj) {
-	    if (q != 0) {
+	    if (q != NULL) {
 		q->next = p->next;
 	    } else {
 		all_objects = p->next;
@@ -92,7 +90,7 @@ read_data(char *buffer, FILE *fp)
 
     if (feof(fp)) {
 	result = 0;
-    } else if (fgets(buffer, MY_LEN, fp) != 0) {
+    } else if (fgets(buffer, MY_LEN, fp) != NULL) {
 	DLG_TRACE(("read_data:%s", buffer));
 	buffer[MY_LEN] = '\0';
 	dlg_trim_string(buffer);
@@ -104,12 +102,12 @@ read_data(char *buffer, FILE *fp)
 }
 
 static int
-decode_percent(char *buffer)
+decode_percent(const char *buffer)
 {
-    char *tmp = 0;
+    char *tmp = NULL;
     long value = strtol(buffer, &tmp, 10);
 
-    if (tmp != 0 && (*tmp == 0 || isspace(UCH(*tmp))) && value >= 0) {
+    if (tmp != NULL && (*tmp == 0 || isspace(UCH(*tmp))) && value >= 0) {
 	return TRUE;
     }
     return FALSE;
@@ -120,7 +118,7 @@ repaint_text(MY_OBJ * obj)
 {
     WINDOW *dialog = obj->obj.win;
 
-    if (dialog != 0) {
+    if (dialog != NULL) {
 	int i, x;
 
 	(void) werase(dialog);
@@ -182,15 +180,18 @@ static bool
 handle_input(DIALOG_CALLBACK * cb)
 {
     MY_OBJ *obj = (MY_OBJ *) cb;
+    FILE *my_input = ((obj != NULL && obj->obj.input != NULL)
+		      ? obj->obj.input
+		      : dialog_state.pipe_input);
     bool result;
     bool cleanup = FALSE;
     int status;
     char buf[MY_LEN + 1];
 
-    if (dialog_state.pipe_input == 0) {
+    if (my_input == NULL) {
 	status = -1;
 	cleanup = TRUE;
-    } else if ((status = read_data(buf, dialog_state.pipe_input)) > 0) {
+    } else if ((status = read_data(buf, my_input)) > 0) {
 
 	if (isMarker(buf)) {
 	    /*
@@ -198,7 +199,7 @@ handle_input(DIALOG_CALLBACK * cb)
 	     * worse-written clones of 'dialog' assumes the number is missing.
 	     * (Gresham's Law applied to software).
 	     */
-	    if ((status = read_data(buf, dialog_state.pipe_input)) > 0) {
+	    if ((status = read_data(buf, my_input)) > 0) {
 
 		obj->prompt_buf[0] = '\0';
 		if (decode_percent(buf))
@@ -207,7 +208,7 @@ handle_input(DIALOG_CALLBACK * cb)
 		    strcpy(obj->prompt_buf, buf);
 
 		/* Rest is message text */
-		while ((status = read_data(buf, dialog_state.pipe_input)) > 0
+		while ((status = read_data(buf, my_input)) > 0
 		       && !isMarker(buf)) {
 		    if (strlen(obj->prompt_buf) + strlen(buf) <
 			sizeof(obj->prompt_buf) - 1) {
@@ -223,8 +224,8 @@ handle_input(DIALOG_CALLBACK * cb)
 	    obj->percent = atoi(buf);
 	}
     } else {
-	if (feof(dialog_state.pipe_input) ||
-	    (ferror(dialog_state.pipe_input) && errno != EINTR)) {
+	if (feof(my_input) ||
+	    (ferror(my_input) && errno != EINTR)) {
 	    cleanup = TRUE;
 	}
     }
@@ -249,11 +250,11 @@ handle_my_getc(DIALOG_CALLBACK * cb, int ch, int fkey, int *result)
     bool status = TRUE;
 
     *result = DLG_EXIT_OK;
-    if (cb != 0) {
+    if (cb != NULL) {
 	if (!fkey && (ch == ERR)) {
 	    (void) handle_input(cb);
 	    /* cb might be freed in handle_input */
-	    status = (valid((MY_OBJ *) cb) && (cb->input != 0));
+	    status = (valid((MY_OBJ *) cb) && (cb->input != NULL));
 	}
     } else {
 	status = FALSE;
@@ -308,7 +309,7 @@ dlg_reallocate_gauge(void *objptr,
     dialog_state.finish_string = TRUE;
     dlg_tab_correct_str(prompt);
 
-    if (objptr == 0) {
+    if (objptr == NULL) {
 	/* create a new object */
 	obj = dlg_calloc(MY_OBJ, 1);
 	assert_ptr(obj, "dialog_gauge");
@@ -324,7 +325,7 @@ dlg_reallocate_gauge(void *objptr,
 	width = obj->width;
     }
 
-    if (obj->obj.win == 0) {
+    if (obj->obj.win == NULL) {
 	/* center dialog box on screen */
 	int x = dlg_box_x_ordinate(width);
 	int y = dlg_box_y_ordinate(height);
@@ -338,7 +339,7 @@ dlg_reallocate_gauge(void *objptr,
     obj->obj.handle_getc = handle_my_getc;
     obj->obj.handle_input = handle_input;
 
-    if (obj->title == 0 || strcmp(obj->title, title)) {
+    if (obj->title == NULL || strcmp(obj->title, title)) {
 	dlg_finish_string(obj->title);
 	free(obj->title);
 	obj->title = dlg_strclone(title);
@@ -353,7 +354,7 @@ dlg_reallocate_gauge(void *objptr,
     obj->width = width;
 
     /* if this was a new object, link it into the list */
-    if (objptr == 0) {
+    if (objptr == NULL) {
 	obj->next = all_objects;
 	all_objects = obj;
     }
@@ -435,8 +436,8 @@ dialog_gauge(const char *title,
 				     oldobj->percent);
 
 	    /* avoid breaking new window in dlg_remove_callback */
-	    oldobj->obj.caller = 0;
-	    oldobj->obj.input = 0;
+	    oldobj->obj.caller = NULL;
+	    oldobj->obj.input = NULL;
 	    oldobj->obj.keep_win = FALSE;
 
 	    /* remove the old version of the gauge */

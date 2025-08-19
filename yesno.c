@@ -1,9 +1,9 @@
 /*
- *  $Id: yesno.c,v 1.71 2020/11/23 00:48:08 tom Exp $
+ *  $Id: yesno.c,v 1.73 2025/01/09 22:33:20 tom Exp $
  *
  *  yesno.c -- implements the yes/no box
  *
- *  Copyright 1999-2019,2020	Thomas E. Dickey
+ *  Copyright 1999-2022,2025	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -24,7 +24,7 @@
  *	Savio Lam (lam836@cs.cuhk.hk)
  */
 
-#include <dialog.h>
+#include <dlg_internals.h>
 #include <dlg_keys.h>
 
 /*
@@ -46,7 +46,7 @@ dialog_yesno(const char *title, const char *cprompt, int height, int width)
     int x, y;
     int key, fkey;
     int button = dlg_default_button();
-    WINDOW *dialog = 0;
+    WINDOW *dialog = NULL;
     int result = DLG_EXIT_UNKNOWN;
     char *prompt;
     const char **buttons = dlg_yes_labels();

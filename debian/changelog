@@ -1,3 +1,83 @@
+dialog (1.3-20250116-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Add debian/salsa-ci.yml.
+  * Do not trim Debian changelog.
+  * Add Vcs-Git and Vcs-Browser fields.
+  * Update Standards-Version.
+
+ -- Santiago Vila <sanvila@debian.org>  Thu, 23 Jan 2025 12:45:00 +0100
+
+dialog (1.3-20240307-2) unstable; urgency=medium
+
+  * Fix Breaks and Replaces fields. Closes: #1068634.
+    Thanks to Helmut Grohne for the report.
+
+ -- Santiago Vila <sanvila@debian.org>  Mon, 08 Apr 2024 12:40:00 +0200
+
+dialog (1.3-20240307-1) unstable; urgency=medium
+
+  [ Santiago Vila ]
+  * New upstream release.
+  * Rules-Requires-Root: no.
+  * Fix typo in debian/copyright.
+  * Update debian/upstream/signing-key.asc.
+  [ Sven Joachim ]
+  * Split out libdialog-dev into its own package. Closes: #1012325.
+  * Build a shared library.
+  * Add libtool-bin to Build-Depends.
+
+ -- Santiago Vila <sanvila@debian.org>  Sun, 07 Apr 2024 12:40:00 +0200
+
+dialog (1.3-20240101-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Santiago Vila <sanvila@debian.org>  Tue, 23 Jan 2024 18:05:00 +0100
+
+dialog (1.3-20231002-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Make debian/copyright machine-readable.
+  * Update debian/watch file. Closes: #1043472.
+
+ -- Santiago Vila <sanvila@debian.org>  Tue, 31 Oct 2023 10:22:00 +0100
+
+dialog (1.3-20230209-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Santiago Vila <sanvila@debian.org>  Sat, 11 Feb 2023 18:20:00 +0100
+
+dialog (1.3-20221229-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Update watch file.
+
+ -- Santiago Vila <sanvila@debian.org>  Thu, 05 Jan 2023 15:25:00 +0100
+
+dialog (1.3-20220728-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Fix segfault when passing large line to editbox. Closes: #1003185.
+  * Fix segfault when resizing menu. Closes: #1004868.
+  * Make --max-input work for sizes greater than 2048. Closes: #1004874.
+  * Add missing ${misc:Depends} to Depends field.
+  * Update standards version to 4.6.1.
+  * Trim trailing whitespace.
+
+ -- Santiago Vila <sanvila@debian.org>  Fri, 16 Dec 2022 14:40:00 +0100
+
+dialog (1.3-20211214-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Fix height-computation for fselect and timebox. Closes: #990043.
+  * Fix off-by-one calendar bug. Closes: #1000720.
+  * Update debian/upstream/signing-key.asc.
+  * Change build-depends to libncurses-dev.
+
+ -- Santiago Vila <sanvila@debian.org>  Tue, 04 Jan 2022 00:30:00 +0100
+
 dialog (1.3-20201126-1) unstable; urgency=medium
 
   * New upstream release.
@@ -416,13 +496,13 @@ dialog (1.0-20050911-1) unstable; urgency=low
   - The gauge widget now handles SIGWINCH (Closes: #305705).
   - Updated translations (Closes: #312622).
   - Fixed segfault problem when using multiple widgets (Closes: #326918).
-	
+
  -- Santiago Vila <sanvila@debian.org>  Mon, 12 Sep 2005 15:18:50 +0200
 
 dialog (1.0-20050306-1) unstable; urgency=low
 
   * New upstream release (updated translations).
-	
+
  -- Santiago Vila <sanvila@debian.org>  Sun,  6 Mar 2005 20:22:00 +0100
 
 dialog (1.0-20050206-1) unstable; urgency=low
@@ -430,19 +510,19 @@ dialog (1.0-20050206-1) unstable; urgency=low
   * New upstream release.
   * The formbox widget now displays fields with flen==0 (Closes: #292417).
   * Clarified manpage about output from formbox widget (Closes: #292418).
-	
+
  -- Santiago Vila <sanvila@debian.org>  Mon,  7 Feb 2005 16:35:12 +0000
 
 dialog (1.0-20050116-1) unstable; urgency=low
 
   * New upstream release.
-	
+
  -- Santiago Vila <sanvila@debian.org>  Sun, 16 Jan 2005 20:01:30 +0100
 
 dialog (1.0-20041222-1) unstable; urgency=low
 
   * New upstream bugfix release.
-	
+
  -- Santiago Vila <sanvila@debian.org>  Thu, 23 Dec 2004 13:04:20 +0100
 
 dialog (1.0-20041219-1) unstable; urgency=low
@@ -451,45 +531,45 @@ dialog (1.0-20041219-1) unstable; urgency=low
   - Fixed help output for --fselect (Closes: #284008).
   - Changed to allow iso-8859-1 chars when LANG=C (Closes: #284795).
   * Added "pause" to the examples directory, for the new "pause" widget.
-	
+
  -- Santiago Vila <sanvila@debian.org>  Tue, 21 Dec 2004 17:00:10 +0100
 
 dialog (1.0-20041118-1) unstable; urgency=low
 
   * New upstream bugfix release.
-	
+
  -- Santiago Vila <sanvila@debian.org>  Sun, 21 Nov 2004 14:48:12 +0100
 
 dialog (1.0-20040920-1) unstable; urgency=low
 
   * New upstream bugfix release.
   - Updated da.po (Closes: #262587).
-	
+
  -- Santiago Vila <sanvila@debian.org>  Sat, 16 Oct 2004 18:42:50 +0200
 
 dialog (1.0-20040731-1) unstable; urgency=low
 
   * New upstream release. Fixes "screen too small" problem (Closes: #262411).
   * Added menubox10, checklist10 and radiolist10 to the examples directory.
-	
+
  -- Santiago Vila <sanvila@debian.org>  Sat, 31 Jul 2004 14:34:20 +0200
 
 dialog (1.0-20040729-1) unstable; urgency=low
 
   * New upstream (bugfix) release.
-	
+
  -- Santiago Vila <sanvila@debian.org>  Fri, 30 Jul 2004 19:10:32 +0200
 
 dialog (1.0-20040728-1) unstable; urgency=low
 
   * New upstream (bugfix) release.
-	
+
  -- Santiago Vila <sanvila@debian.org>  Thu, 29 Jul 2004 17:46:06 +0200
 
 dialog (1.0-20040721-1) unstable; urgency=low
 
   * New upstream "1.0" release.
-	
+
  -- Santiago Vila <sanvila@debian.org>  Thu, 22 Jul 2004 19:16:54 +0200
 
 dialog (0.9b-20040606-1) unstable; urgency=low
@@ -498,7 +578,7 @@ dialog (0.9b-20040606-1) unstable; urgency=low
   - Added Catalan .po file (Closes: #251787).
   - Improved documentation about wrapping (Closes: #251937).
   - Modified msgbox to allow it to scroll vertically (Closes: #233276).
-	
+
  -- Santiago Vila <sanvila@debian.org>  Mon,  7 Jun 2004 19:33:06 +0200
 
 dialog (0.9b-20040421-1) unstable; urgency=low

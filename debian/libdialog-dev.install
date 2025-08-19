@@ -1,0 +1,4 @@
+usr/include
+usr/lib/*/libdialog.so
+usr/lib/*/libdialog.a
+usr/share/man/man3

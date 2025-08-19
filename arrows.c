@@ -1,9 +1,9 @@
 /*
- *  $Id: arrows.c,v 1.53 2019/07/24 23:04:14 tom Exp $
+ *  $Id: arrows.c,v 1.55 2025/01/09 22:33:20 tom Exp $
  *
  *  arrows.c -- draw arrows to indicate end-of-range for lists
  *
- *  Copyright 2000-2018,2019	Thomas E. Dickey
+ *  Copyright 2000-2022,2025	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -21,7 +21,7 @@
  *	Boston, MA 02110, USA.
  */
 
-#include <dialog.h>
+#include <dlg_internals.h>
 
 #ifdef USE_WIDE_CURSES
 #if defined(CURSES_WACS_ARRAY) && !defined(CURSES_WACS_SYMBOLS)
@@ -72,7 +72,7 @@ dlg_draw_helpline(WINDOW *win, bool decorations)
 {
     int bottom;
 
-    if (dialog_vars.help_line != 0
+    if (dialog_vars.help_line != NULL
 	&& dialog_vars.help_line[0] != 0
 	&& (bottom = getmaxy(win) - 1) > 0) {
 	chtype attr = A_NORMAL;

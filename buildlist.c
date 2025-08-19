@@ -1,9 +1,9 @@
 /*
- *  $Id: buildlist.c,v 1.94 2020/11/23 00:37:17 tom Exp $
+ *  $Id: buildlist.c,v 1.97 2025/01/09 22:33:20 tom Exp $
  *
  *  buildlist.c -- implements the buildlist dialog
  *
- *  Copyright 2012-2019,2020	Thomas E. Dickey
+ *  Copyright 2012-2024,2025	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -73,9 +73,9 @@ typedef struct {
  * starting at zero.
  */
 static int
-index2row(ALL_DATA * all, int choice, int selected)
+index2row(const ALL_DATA * all, int choice, int selected)
 {
-    MY_DATA *data = all->list + selected;
+    const MY_DATA *data = all->list + selected;
     int result = -1;
 
     if (okIndex(all, choice)) {
@@ -99,9 +99,9 @@ index2row(ALL_DATA * all, int choice, int selected)
  * Convert a row-number back to an item number, i.e., index into items[].
  */
 static int
-row2index(ALL_DATA * all, int row, int selected)
+row2index(const ALL_DATA * all, int row, int selected)
 {
-    MY_DATA *data = all->list + selected;
+    const MY_DATA *data = all->list + selected;
     int result = -1;
     int n;
     for (n = 0; n < all->item_no; ++n) {
@@ -171,9 +171,9 @@ print_1_list(ALL_DATA * all,
 	     int selected)
 {
     MY_DATA *data = all->list + selected;
-    DIALOG_LISTITEM *target = (okIndex(all, choice)
+    const DIALOG_LISTITEM *target = (okIndex(all, choice)
 			       ? all->items + choice
-			       : 0);
+			       : NULL);
     WINDOW *win = data->win;
     int i, j;
     int last = 0;
@@ -208,7 +208,7 @@ print_1_list(ALL_DATA * all,
  * further movement is possible, return the same choice as given.
  */
 static int
-prev_item(ALL_DATA * all, int choice, int selected)
+prev_item(const ALL_DATA * all, int choice, int selected)
 {
     int result = choice;
     int row = index2row(all, choice, selected);
@@ -230,7 +230,7 @@ stop_prev(ALL_DATA * all, int choice, int selected)
 }
 
 static bool
-check_hotkey(DIALOG_LISTITEM * items, int choice, int selected)
+check_hotkey(const DIALOG_LISTITEM * items, int choice, int selected)
 {
     bool result = FALSE;
 
@@ -250,9 +250,9 @@ check_hotkey(DIALOG_LISTITEM * items, int choice, int selected)
  * further movement is possible, return the same choice as given.
  */
 static int
-next_item(ALL_DATA * all, int choice, int selected)
+next_item(const ALL_DATA * all, int choice, int selected)
 {
-    MY_DATA *data = all->list + selected;
+    const MY_DATA *data = all->list + selected;
     int result = choice;
     int row = index2row(all, choice, selected);
     TRACE(("! given item %d, testing next-item on row %d\n", choice, row + 1));
@@ -267,12 +267,12 @@ next_item(ALL_DATA * all, int choice, int selected)
  * Return the first choice from items[] for the given column.
  */
 static int
-first_item(ALL_DATA * all, int selected)
+first_item(const ALL_DATA * all, int selected)
 {
-    MY_DATA *data = all->list + selected;
+    const MY_DATA *data = all->list + selected;
     int result = -1;
 
-    if (myItem(data, 0) != 0) {
+    if (myItem(data, 0) != NULL) {
 	int n;
 
 	for (n = 0; n < all->item_no; ++n) {
@@ -290,13 +290,13 @@ first_item(ALL_DATA * all, int selected)
  * Return the last choice from items[] for the given column.
  */
 static int
-last_item(ALL_DATA * all, int selected)
+last_item(const ALL_DATA * all, int selected)
 {
-    MY_DATA *data = all->list + selected;
+    const MY_DATA *data = all->list + selected;
     int result = -1;
     int n;
 
-    for (n = 0; myItem(data, n) != 0; ++n) {
+    for (n = 0; myItem(data, n) != NULL; ++n) {
 	result = n;
     }
     if (result >= 0) {
@@ -307,16 +307,16 @@ last_item(ALL_DATA * all, int selected)
 }
 
 static int
-skip_rows(ALL_DATA * all, int row, int skip, int selected)
+skip_rows(const ALL_DATA * all, int row, int skip, int selected)
 {
-    MY_DATA *data = all->list + selected;
+    const MY_DATA *data = all->list + selected;
     int result = row;
 
     if (skip > 0) {
 	int n;
 
 	for (n = row + 1; (n < all->item_no) && (n <= row + skip); ++n) {
-	    if (myItem(data, n) == 0)
+	    if (myItem(data, n) == NULL)
 		break;
 	    result = n;
 	}
@@ -334,7 +334,7 @@ skip_rows(ALL_DATA * all, int row, int skip, int selected)
  * Find the closest item in the given column starting with the given choice.
  */
 static int
-closest_item(ALL_DATA * all, int choice, int selected)
+closest_item(const ALL_DATA * all, int choice, int selected)
 {
     int prev = choice;
     int next = choice;
@@ -445,7 +445,7 @@ append_right_side(ALL_DATA * all, int choice)
     MY_DATA *data = &all->list[1];
     int j;
     for (j = 0; j < all->item_no; ++j) {
-	if (myItem(data, j) == 0) {
+	if (myItem(data, j) == NULL) {
 	    myItem(data, j) = &all->items[choice];
 	    break;
 	}
@@ -460,7 +460,7 @@ amend_right_side(ALL_DATA * all, int choice)
     for (j = 0; j < all->item_no; ++j) {
 	if (myItem(data, j) == &all->items[choice]) {
 	    for (k = j; k < all->item_no; ++k) {
-		if ((myItem(data, k) = myItem(data, k + 1)) == 0)
+		if ((myItem(data, k) = myItem(data, k + 1)) == NULL)
 		    break;
 	    }
 	    break;
@@ -475,7 +475,7 @@ fill_one_side(ALL_DATA * all, int selected)
     MY_DATA *data = all->list + selected;
 
     for (i = j = 0; j < all->item_no; ++j) {
-	myItem(data, i) = 0;
+	myItem(data, i) = NULL;
 	if ((all->items[j].state != 0) == selected) {
 	    myItem(data, i) = all->items + j;
 	    TRACE(("! %s item[%d] %p = all[%d] %p\n",
@@ -485,7 +485,7 @@ fill_one_side(ALL_DATA * all, int selected)
 	    ++i;
 	}
     }
-    myItem(data, i) = 0;
+    myItem(data, i) = NULL;
 }
 
 static void
@@ -582,7 +582,7 @@ dlg_buildlist(const char *title,
     }
     fill_both_sides(&all);
 
-    if (dialog_vars.default_item != 0) {
+    if (dialog_vars.default_item != NULL) {
 	cur_item = dlg_default_listitem(items);
     } else {
 	if ((cur_item = first_item(&all, 0)) < 0)
@@ -621,7 +621,7 @@ dlg_buildlist(const char *title,
     dlg_ctl_size(height, width);
 
     /* we need at least two states */
-    if (states == 0 || strlen(states) < 2)
+    if (states == NULL || strlen(states) < 2)
 	states = " *";
     num_states = (int) strlen(states);
 
@@ -942,9 +942,7 @@ dlg_buildlist(const char *title,
 		}
 		break;
 	    }
-	}
 
-	if (!found && fkey) {
 	    i = cur_item;
 	    found = TRUE;
 	    switch (key) {
@@ -1140,7 +1138,7 @@ dlg_buildlist(const char *title,
 	j = 0;
 	for (k = 0; k < 2; ++k) {
 	    for (row = 0; row < item_no; ++row) {
-		if (myItem(all.list + k, row) == 0)
+		if (myItem(all.list + k, row) == NULL)
 		    break;
 		choice = row2index(&all, row, k);
 		if (choice == cur_item)
